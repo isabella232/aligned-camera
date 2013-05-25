@@ -31,7 +31,10 @@ public class CameraPreview extends SurfaceView implements
 		SurfaceHolder.Callback, Camera.PictureCallback,
 		Camera.AutoFocusCallback {
 	private SurfaceHolder mHolder;
+	private int currOrientation;
+	private Camera.Parameters currParameters;
 	private Camera mCamera;
+	private boolean pictureTaken;
 	private TestDimensions shapeDim;
 	private Context context;
 	private FrameLayout screenPreview;
@@ -41,6 +44,7 @@ public class CameraPreview extends SurfaceView implements
 	private final String directoryPath;
 	private Callback parentRef;
 
+	@SuppressWarnings("deprecation")
 	public CameraPreview(Context context, Camera camera, FrameLayout preview,
 			String directoryPath) {
 		super(context);
@@ -51,6 +55,8 @@ public class CameraPreview extends SurfaceView implements
 		generateShapes = true;
 		// initialize blank shape parameters
 		shapeDim = new TestDimensions(0, 0, 0, 0, 0, 0);
+		pictureTaken = false;
+		pictureFile = null;
 
 		// Install a SurfaceHolder.Callback so we get notified when the
 		// underlying surface is created and destroyed.
@@ -60,13 +66,11 @@ public class CameraPreview extends SurfaceView implements
 	}
 
 	public void surfaceCreated(SurfaceHolder holder) {
-		// The Surface has been created, now tell the camera where to draw the
-		// preview.
 		try {
 			if (mCamera == null) {
 				mCamera = Camera.open();
 				mCamera.startPreview();
-			}
+			} 
 		} catch (Exception e) {
 			e.printStackTrace();
 			((Activity) context).setResult(Activity.RESULT_CANCELED);
@@ -75,12 +79,16 @@ public class CameraPreview extends SurfaceView implements
 	}
 
 	public void surfaceDestroyed(SurfaceHolder holder) {
-		if (mCamera != null) {
+		if (parentRef != null) { // a picture was taken
+			// the current image preview is being destroyed, so the 
+			// camera buttons are reset
+			parentRef.resetButtons(); 
+		} if (mCamera != null) {
 			mCamera.setPreviewCallback(null);
 			mCamera.stopPreview();
 			mCamera.release();
 			mCamera = null;
-		}
+		} 
 	}
 
 	private int determineDisplayOrientation() {
@@ -117,7 +125,9 @@ public class CameraPreview extends SurfaceView implements
 		try {
 			mCamera.stopPreview();
 		} catch (Exception e) {
-			// ignore: tried to stop a non-existent preview
+			e.printStackTrace();
+			((Activity) context).setResult(Activity.RESULT_CANCELED);
+			((Activity) context).finish();
 		}
 
 		// start preview with new settings
@@ -149,14 +159,15 @@ public class CameraPreview extends SurfaceView implements
 			     parameters.set("rotation",(90 - degrees + 360) % 360);
 			} else {
 				int orientation = determineDisplayOrientation();
+				currOrientation = orientation;
 				mCamera.setDisplayOrientation(orientation);
 			}
 			mCamera.setParameters(parameters);
 			mCamera.setPreviewDisplay(holder);
 			mCamera.startPreview();
-
-			// uses a boolean flag to make sure that shapes are only generated
-			// once
+			currParameters = parameters;
+			
+			// uses a boolean flag to make sure that shapes are only generated once
 			if (generateShapes) {
 				setTestShape(h, w, context);
 			}
@@ -253,8 +264,6 @@ public class CameraPreview extends SurfaceView implements
 				horiOffsetRight, vertiOffsetLower);
 	}
 
-	// Sets the private fields corresponding to the sizes of the test
-	// strips and the x and y offset of the inner rectangle
 	public void setShapeSize(TestDimensions shape) {
 		shapeDim = shape;
 	}
@@ -264,15 +273,15 @@ public class CameraPreview extends SurfaceView implements
 		mCamera.autoFocus(this);
 	}
 
-	public void onPictureTaken(byte[] data, Camera camera) {
-		pausePreview();
+	public void onPictureTaken(byte[] data, Camera camera) {	
+		pictureTaken = true;
 		pictureFile = getOutputMediaFile();
 		cameraData = data;
 		parentRef.enableSaveButton();
 	}
 
 	// If the "Save" button is pressed then the picture file is saved
-	// and then the camera preview is resumed
+	// and then this app returns to the caller that inovked it
 	public void savePicture() {
 		try {
 			FileOutputStream fos = new FileOutputStream(pictureFile);
@@ -319,9 +328,10 @@ public class CameraPreview extends SurfaceView implements
 	// If the "Retake" button is pressed then the picture file is
 	// deleted and the camera preview is resumed
 	public void retakePicture() {
-		pictureFile.delete();
+		if (pictureFile != null) pictureFile.delete();
 		cameraData = null;
-		resumePreview();
+		pictureTaken = false;
+		mCamera.startPreview();	
 	}
 
 	/** Create a File for saving an image or video */
@@ -347,16 +357,40 @@ public class CameraPreview extends SurfaceView implements
 
 		return mediaFile;
 	}
-
-	public void pausePreview() {
+	
+	// inovked by the onPause method in 
+	// the TakePicture class
+	public void releaseCamera() {
 		if (mCamera != null) {
 			mCamera.stopPreview();
+			mCamera.release();
+			mCamera = null;
 		}
 	}
-
-	public void resumePreview() {
-		if (mCamera != null) {
-			mCamera.startPreview();
+	
+	// invoked by the onResume method in
+	// the TakePicture class
+	public void restoreCamera() {
+		// currParameters, currOrientation, and mHolder are created
+		// when the surface was originally created
+		if (mCamera == null) {
+			mCamera = Camera.open();
+			mCamera.setParameters(currParameters);
+			
+			if (android.os.Build.VERSION.SDK_INT >= 9 ) {
+				mCamera.setDisplayOrientation(currOrientation);
+			} 
+			try {
+				mCamera.setPreviewDisplay(mHolder);
+			} catch (IOException e) {
+				e.printStackTrace();
+				((Activity) context).setResult(Activity.RESULT_CANCELED);
+				((Activity) context).finish();
+			}
+			
+			if (!pictureTaken) {
+				mCamera.startPreview();
+			}
 		}
 	}
 

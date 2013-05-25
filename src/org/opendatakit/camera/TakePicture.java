@@ -18,6 +18,7 @@ import android.widget.FrameLayout;
 
 interface Callback {
 	public void enableSaveButton();
+	public void resetButtons();
 }
 
 public class TakePicture extends Activity implements Callback {
@@ -131,6 +132,11 @@ public class TakePicture extends Activity implements Callback {
 		savePic = (Button) findViewById(R.id.keep_picture);
 		savePic.setOnClickListener(savePicButton);
 		savePic.setEnabled(false);
+		
+	    if (!retakeOption) {
+        	savePic.setVisibility(View.INVISIBLE);
+        	retakePic.setVisibility(View.INVISIBLE);
+        }
 	}
 
 	// verifies that the test shape array parameters are valid
@@ -201,10 +207,20 @@ public class TakePicture extends Activity implements Callback {
 	}
 
 	public void enableSaveButton() {
-		if (retakeOption)
-			retakePic.setEnabled(true);
-
-		savePic.setEnabled(true);
+	  	if (retakeOption) { // allow user to preview the captured image
+    		retakePic.setEnabled(true);    
+    		savePic.setEnabled(true);
+    	} else {
+    		mPreview.savePicture(); // directly save the picture after it's taken
+    	}
+	}
+	
+	public void resetButtons() {
+		if (retakeOption) {
+			retakePic.setEnabled(false); 
+		}
+		savePic.setEnabled(false);
+		takePic.setEnabled(true);
 	}
 
 	private OnClickListener retakePicButton = new OnClickListener() {
@@ -226,13 +242,15 @@ public class TakePicture extends Activity implements Callback {
 	protected void onPause() {
 		super.onPause();
 		// Handled in CameraPreview
+		mPreview.releaseCamera();
 	}
 
 	protected void onResume() {
 		super.onResume();
 		// Handled in CameraPreview
+		mPreview.restoreCamera();
 	}
-
+	
 	public static Camera getCameraInstance() {
 		Camera c = null;
 		try {
