@@ -89,26 +89,6 @@ public class TakePicture extends Activity implements Callback {
 		mPreview = new CameraPreview(this, mCamera, preview, filePath);
 		preview.addView(mPreview);
 
-		// And see if we should set an alignment shape.
-		/** Notes **/
-		// In order to display the test strips rectangles use the following
-		// method call:
-		// mPreview.setShapeSize(...);
-		//
-		// Parameters for setShapeSize:
-		// setShapeSize(outerRecWidth, outerRecHeight, innerRecWidth,
-		// innerRecHeight, y-offset, x-offset)
-
-		// Examples:
-
-		// --Determine Test Parameters--
-		// mPreview.setShapeSize(2214, 426, 738, 142, 1107, 213);
-
-		// --DFA_Multiplex Test Parameters--
-		// mPreview.setShapeSize(1300, 1245, 325, 311, 650, 623);
-
-		// --SD_Malaria Test Parameters--
-		// mPreview.setShapeSize(1647, 463, 549, 154, 824, 232);
 		if (data != null) {
 			if (data.containsKey("dimensions")) {
 				setAlignmentShape(data.getIntArray("dimensions"));
