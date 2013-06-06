@@ -18,6 +18,9 @@ import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.graphics.drawable.GradientDrawable;
 import android.hardware.Camera;
+import android.hardware.Camera.Size;
+import android.net.Uri;
+import android.os.Environment;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -138,7 +141,6 @@ public class CameraPreview extends SurfaceView implements
 				parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
 			}
 
-			parameters.setPreviewSize(w, h);
 			if ( android.os.Build.VERSION.SDK_INT < 9 ) {
 			     WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
 			     int rotation = Surface.ROTATION_0;
@@ -162,6 +164,12 @@ public class CameraPreview extends SurfaceView implements
 				currOrientation = orientation;
 				mCamera.setDisplayOrientation(orientation);
 			}
+			
+			List<Size> sizes = parameters.getSupportedPictureSizes();
+			// Choose camera preview size
+			Size cameraPrevSize = sizes.get(0);
+			parameters.setPictureSize(cameraPrevSize.width, cameraPrevSize.height);
+			
 			mCamera.setParameters(parameters);
 			mCamera.setPreviewDisplay(holder);
 			mCamera.startPreview();
@@ -169,7 +177,10 @@ public class CameraPreview extends SurfaceView implements
 			
 			// uses a boolean flag to make sure that shapes are only generated once
 			if (generateShapes) {
-				setTestShape(h, w, context);
+				// check that shapeDim has been properly intialized
+				if (shapeDim != null && shapeDim.getOuterRecH() != 0 && shapeDim.getOuterRecW() != 0) {
+					setTestShape(h, w, context);
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -300,6 +311,9 @@ public class CameraPreview extends SurfaceView implements
 			bmp.compress(Bitmap.CompressFormat.JPEG, 100, fos);
 			fos.flush();
 			fos.close();
+			
+			// force media scanner to scan for the newly created image
+			context.sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED, Uri.parse("file://"+ Environment.getExternalStorageDirectory())));
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 			((Activity) context).setResult(Activity.RESULT_CANCELED);

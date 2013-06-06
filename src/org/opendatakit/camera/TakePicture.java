@@ -49,7 +49,7 @@ public class TakePicture extends Activity implements Callback {
 		} else {
 			rootDir = Environment
 					.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-		}
+		} 
 		File defaultFile = new File(rootDir, "Default");
 		String filePath = defaultFile.getAbsolutePath();
 
