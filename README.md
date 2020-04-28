@@ -1,4 +1,4 @@
-# alignedcamera
+# aligned-camera
 
 This project is not actively maintained. It is archived here for reference purposes.
 
